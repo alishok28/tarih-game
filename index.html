@@ -398,9 +398,27 @@ let writeChain=Promise.resolve();
 function validRun(r){return r&&typeof r.n==='string'&&Number.isFinite(r.tr)&&r.tr>=0&&r.tr<10&&Number.isFinite(r.t)&&Number.isFinite(r.s)}
 function better(a,b){return !b||a.s>b.s||(a.s===b.s&&a.t<b.t)}
 function mergeMine(runs){let ch=false;for(const k in runs){const r=runs[k];if(validRun(r)&&better(r,myRuns[k])){myRuns[k]=r;ch=true}}if(ch)store.set('runs',myRuns)}
+const SB={url:'https://blwaxpmssdikkebhswve.supabase.co/rest/v1/scores',key:'sb_publishable_2VKrsDOXnz4jmnmJNpMZ0Q_jr1nnTlS'};
+const sbHead=()=>({apikey:SB.key,Authorization:'Bearer '+SB.key,'Content-Type':'application/json'});
+function sbInit(){cloud.mode='sb';let id=store.get('uid','');if(!id||id.length<8){id='';for(let i=0;i<16;i++)id+='0123456789abcdef'[Math.floor(Math.random()*16)];store.set('uid',id)}cloud.uid=id;sbLoad()}
+let sbBusy=false;
+async function sbLoad(){
+ if(sbBusy)return;sbBusy=true;
+ try{const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),10000);
+  const r=await fetch(SB.url+'?select=uid,name,track,time_s,place,correct,score,ch&order=score.desc,time_s.asc&limit=3000',{headers:sbHead(),signal:ctl.signal});clearTimeout(tm);
+  if(!r.ok)throw 0;const data=await r.json(),best={};
+  data.forEach(d=>{const x={n:String(d.name||'').slice(0,20),tr:d.track,t:d.time_s,p:d.place,c:d.correct,s:d.score,ch:d.ch,u:String(d.uid)};if(!validRun(x)||x.u===cloud.uid)return;const k=x.u+'|'+x.n+'|'+x.tr;if(better(x,best[k]))best[k]=x});
+  cloud.all=Object.values(best);cloud.state='on';
+ }catch(e){if(cloud.state!=='on')cloud.state='local'}
+ sbBusy=false;boardRender();
+}
+async function sbSave(run){
+ try{const r=await fetch(SB.url,{method:'POST',headers:Object.assign({Prefer:'return=minimal'},sbHead()),body:JSON.stringify({uid:cloud.uid,name:run.n,track:run.tr,time_s:Math.max(20,run.t),place:run.p,correct:run.c,score:run.s,ch:run.ch})});
+  cloud.writeOk=r.ok;return r.ok}catch(e){cloud.writeOk=false;return false}
+}
 async function initCloud(){
  try{
-  if(!window.claude||!window.claude.use){cloud.state='local';boardRender();return}
+  if(!window.claude||!window.claude.use){sbInit();return}
   const [db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);
   const uid=user?await user.id():null;
   if(!db||!uid){cloud.state='local';boardRender();return}
@@ -420,6 +438,7 @@ function saveRun(run){
  const k=run.tr+'|'+run.n;
  if(!better(run,myRuns[k]))return Promise.resolve(cloud.db?cloud.writeOk!==false:false);
  myRuns[k]=run;store.set('runs',myRuns);
+ if(cloud.mode==='sb')return sbSave(run);
  if(!cloud.db)return Promise.resolve(false);
  writeChain=writeChain.then(async()=>{
   try{const cur=await cloud.db.doc('scores/'+cloud.uid).get();if(cur.exists){const b=cur.data();if(b&&b.runs)mergeMine(b.runs)}
@@ -631,7 +650,7 @@ $('pname').addEventListener('keydown',e=>{if(e.key==='Enter')$('bPlay').click();
 $('pname').addEventListener('keyup',e=>e.stopPropagation());
 $('bHow').onclick=()=>show('how');
 let boardFrom='menu';
-function openBoard(v){boardFrom=mode;if(v!==undefined)$('bSel').value=String(v);show('board')}
+function openBoard(v){boardFrom=mode;if(cloud.mode==='sb')sbLoad();if(v!==undefined)$('bSel').value=String(v);show('board')}
 $('bBoard').onclick=()=>{pname=$('pname').value.trim().slice(0,20)||pname;openBoard('all')};
 $('bBack').onclick=()=>show(boardFrom);
 $('bStart').onclick=()=>startRace();
