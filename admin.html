@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src https://blwaxpmssdikkebhswve.supabase.co; base-uri 'none'; form-action 'none'; object-src 'none'; manifest-src 'none'; worker-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>Тарих Race KZ · Админ</title>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="locked">
+<header class="top">
+ <div class="brand">ТАРИХ <span>RACE KZ</span> <em>Админ</em></div>
+ <div class="who"><span id="whoEmail"></span><button class="btn sec small" id="bLogout" type="button" hidden>Шығу</button></div>
+</header>
+
+<main>
+ <section id="vLoading" class="panel narrow"><p class="muted">Жүктеліп жатыр…</p></section>
+
+ <section id="vLogin" class="panel narrow" hidden>
+  <h1>Админ кіруі</h1>
+  <p class="muted">Бұл бет тек ойын ұйымдастырушысына арналған. Ойыншылардың нәтижелерін тек осы жерден көруге болады.</p>
+  <form id="fLogin" novalidate>
+   <label for="email">Email</label>
+   <input id="email" name="email" type="email" autocomplete="username" spellcheck="false" required>
+   <label for="pass">Құпиясөз</label>
+   <input id="pass" name="pass" type="password" autocomplete="current-password" required>
+   <div class="err" id="loginErr" role="alert"></div>
+   <button class="btn" type="submit" id="bLogin">Кіру</button>
+  </form>
+ </section>
+
+ <section id="vEnroll" class="panel narrow" hidden>
+  <h1>Екі сатылы қорғанысты қосу</h1>
+  <p class="muted">Бұл қадам бір рет қана жасалады. Содан кейін кірген сайын құпиясөзден бөлек телефондағы код сұралады.</p>
+  <ol class="steps">
+   <li>Телефонға аутентификатор қолданбасын орнатыңыз: Google Authenticator, Microsoft Authenticator немесе басқасы.</li>
+   <li>Қолданбада «QR-кодты сканерлеу» таңдап, төмендегі кодты сканерлеңіз.</li>
+   <li>Қолданба көрсеткен 6 таңбалы кодты жазып, «Растау» басыңыз.</li>
+  </ol>
+  <div class="qr"><img id="qrImg" alt="Аутентификатор қолданбасына арналған QR-код" width="200" height="200" hidden></div>
+  <p class="muted small">QR сканерленбесе, қолданбаға мына кілтті қолмен енгізіңіз:</p>
+  <code id="secret" class="secret"></code>
+  <form id="fEnroll" novalidate>
+   <label for="code1">6 таңбалы код</label>
+   <input id="code1" name="code1" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}">
+   <div class="err" id="enrollErr" role="alert"></div>
+   <button class="btn" type="submit">Растау</button>
+  </form>
+ </section>
+
+ <section id="vVerify" class="panel narrow" hidden>
+  <h1>Растау коды</h1>
+  <p class="muted">Телефондағы аутентификатор қолданбасы көрсетіп тұрған 6 таңбалы кодты жазыңыз.</p>
+  <form id="fVerify" novalidate>
+   <label for="code2">6 таңбалы код</label>
+   <input id="code2" name="code2" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}">
+   <div class="err" id="verifyErr" role="alert"></div>
+   <button class="btn" type="submit">Кіру</button>
+  </form>
+ </section>
+
+ <section id="vData" hidden>
+  <div class="tiles">
+   <div class="tile"><b id="tGames">0</b><span>Ойын</span></div>
+   <div class="tile"><b id="tPlayers">0</b><span>Ойыншы</span></div>
+   <div class="tile"><b id="tCorrect">0%</b><span>Дұрыс жауаптар</span></div>
+   <div class="tile"><b id="tBest">0</b><span>Ең жоғары ұпай</span></div>
+  </div>
+  <div class="toolbar">
+   <div class="seg" role="tablist" aria-label="Көрініс">
+    <button type="button" class="on" data-view="games" role="tab" aria-selected="true">Барлық ойындар</button>
+    <button type="button" data-view="players" role="tab" aria-selected="false">Ойыншылар бойынша</button>
+   </div>
+   <select id="fEra" aria-label="Дәуір"></select>
+   <select id="fPeriod" aria-label="Кезең">
+    <option value="all">Барлық уақыт</option>
+    <option value="1">Соңғы 24 сағат</option>
+    <option value="7">Соңғы 7 күн</option>
+    <option value="30">Соңғы 30 күн</option>
+   </select>
+   <input id="fName" type="search" placeholder="Аты бойынша іздеу" aria-label="Аты бойынша іздеу" autocomplete="off" spellcheck="false">
+   <div class="actions">
+    <button class="btn sec small" id="bRefresh" type="button">Жаңарту</button>
+    <button class="btn small" id="bCsv" type="button">CSV жүктеу</button>
+   </div>
+  </div>
+  <p class="note" id="dataNote" role="status"></p>
+  <div class="tblw"><table id="tbl"><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+  <div class="more"><button class="btn sec small" id="bMore" type="button" hidden>Тағы көрсету</button></div>
+  <p class="muted small foot">Қауіпсіздік үшін 15 минут әрекетсіз тұрсаңыз, жүйеден автоматты түрде шығасыз. Бетті жапқанда да сессия жойылады.</p>
+ </section>
+</main>
+
+<div id="dlg" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="dlgT">
+ <div class="panel narrow">
+  <h2 id="dlgT">Жазбаны өшіру</h2>
+  <p id="dlgP"></p>
+  <div class="row"><button class="btn sec" id="dlgNo" type="button">Болдырмау</button><button class="btn danger" id="dlgYes" type="button">Өшіру</button></div>
+ </div>
+</div>
+
+<script src="vendor/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/data.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
