@@ -99,12 +99,24 @@ $('fLogin').addEventListener('submit', async e => {
 /* ---------------- TOTP enrolment (first login) ---------------- */
 let enrollId = null, qrUrl = null;
 function clearQr() { if (qrUrl) { URL.revokeObjectURL(qrUrl); qrUrl = null; } $('qrImg').removeAttribute('src'); $('qrImg').hidden = true; $('secret').textContent = ''; }
-function setQr(raw) {
-  clearQr();
+/* The QR is drawn here in the browser from the otpauth:// link (vendor/qrcode.js).
+   If that is not possible, the SVG sent by Supabase is used, after checking that it really is an SVG. */
+function qrFromUri(uri) {
+  if (typeof uri !== 'string' || !uri.startsWith('otpauth://') || typeof window.qrcode !== 'function') return null;
+  try { const q = window.qrcode(0, 'M'); q.addData(uri); q.make(); return q.createSvgTag({ cellSize: 4, margin: 4, scalable: true }); }
+  catch (e) { return null; }
+}
+function cleanSvg(raw) {
   let svg = String(raw || '');
   if (svg.startsWith('data:')) svg = svg.slice(svg.indexOf(',') + 1);
-  if (!svg.trimStart().startsWith('<')) { try { svg = decodeURIComponent(svg); } catch (e) { svg = ''; } }
-  if (!/^\s*(<\?xml[^>]*>\s*)?<svg[\s>]/i.test(svg)) return; // only an SVG image is accepted
+  if (!svg.trimStart().startsWith('<')) { try { svg = decodeURIComponent(svg); } catch (e) { return null; } }
+  svg = svg.replace(/^\s*<\?xml[^>]*\?>/, '').replace(/<!--[\s\S]*?-->/g, '').trim(); // Supabase adds an XML header and a comment
+  return /^<svg[\s>]/i.test(svg) && /<\/svg>$/i.test(svg) ? svg : null; // shown only inside <img>, where SVG cannot run scripts
+}
+function setQr(totp) {
+  clearQr();
+  const svg = qrFromUri(totp && totp.uri) || cleanSvg(totp && totp.qr_code);
+  if (!svg) return;
   qrUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
   $('qrImg').src = qrUrl; $('qrImg').hidden = false;
 }
@@ -122,7 +134,7 @@ async function startEnroll() {
     $('enrollErr').textContent = error && error.status === 422 ? 'Supabase-те TOTP қосылмаған: Authentication → Multi-Factor бөлімінде TOTP-ті қосыңыз.' : 'Екі сатылы қорғанысты бастау мүмкін болмады. Бетті жаңартыңыз.';
     return;
   }
-  enrollId = data.id; setQr(data.totp.qr_code); $('secret').textContent = data.totp.secret || '';
+  enrollId = data.id; setQr(data.totp); $('secret').textContent = data.totp.secret || '';
   $('code1').value = ''; $('code1').focus();
 }
 $('fEnroll').addEventListener('submit', async e => {

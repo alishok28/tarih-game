@@ -14,7 +14,7 @@
 | `admin.html`, `js/admin.js`, `css/admin.css` | Админ беті: логин, 2FA, нәтижелер |
 | `js/config.js` | Supabase мекенжайы және ашық (publishable) кілт |
 | `supabase/security.sql` | Базаның қауіпсіздік ережелері |
-| `vendor/`, `fonts/` | three.js, supabase-js және шрифттер (сайттың өзінде сақталады) |
+| `vendor/`, `fonts/` | three.js, supabase-js, QR генераторы және шрифттер (сайттың өзінде сақталады) |
 
 ## Сұрақтарды өзгерту
 
